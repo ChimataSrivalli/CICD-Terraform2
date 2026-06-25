@@ -1,0 +1,20 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Variables
+*.tfvars
+
+# Keys
+*.pem
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Zip files
+*.zip
