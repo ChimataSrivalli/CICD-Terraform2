@@ -2248,4 +2248,717 @@ Jenkins build does not start automatically.
 In this phase, Jenkins was integrated with GitHub to automate the Continuous Integration (CI) workflow. The project was configured to use SSH-based Git authentication, allowing secure communication with GitHub without passwords. Application changes were committed and pushed to the repository, triggering Jenkins to build the Docker image, load it into Minikube, deploy it to Kubernetes, and verify that the updated application was running successfully. This completed the CI portion of the project and prepared the environment for the Continuous Deployment (CD) phase using Argo CD.
 >>>>>>> 629c9b9 (readme)
 
+## phase 9
+
+Task 1 — Install Argo CD
+
+Verify namespace:
+
+kubectl get ns
+
+Expected:
+
+argocd
+default
+dev
+monitoring
+
+If missing:
+
+kubectl create namespace argocd
+
+Install ArgoCD
+
+kubectl apply -n argocd \
+-f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+Wait:
+
+kubectl get pods -n argocd
+
+Initially
+
+ContainerCreating
+
+Eventually
+
+Running
+
+Check
+
+kubectl get all -n argocd
+
+You should see
+
+Pods
+
+Services
+
+ReplicaSets
+
+Deployments
+Task 2 — Expose Argo CD
+
+Check services
+
+kubectl get svc -n argocd
+
+You'll see
+
+argocd-server ClusterIP
+
+Change to NodePort
+
+kubectl patch svc argocd-server \
+-n argocd \
+-p '{"spec":{"type":"NodePort"}}'
+
+Verify
+
+kubectl get svc -n argocd
+
+Example
+
+NAME              TYPE
+argocd-server     NodePort
+
+Get the NodePort
+
+kubectl get svc argocd-server -n argocd
+
+Example
+
+80:32080/TCP
+443:32443/TCP
+
+Use the HTTPS NodePort (for example 32443).
+
+Task 3 — Access the UI
+
+Get the Minikube IP:
+
+minikube ip
+
+Example:
+
+192.168.49.2
+
+Open:
+
+https://192.168.49.2:<HTTPS_NODEPORT>
+
+If you're on an EC2 instance, this IP is only reachable from the EC2 host. In a later step you can use kubectl port-forward or another method to access the UI from your local machine if needed.
+
+Task 4 — Get Initial Password
+kubectl get secret argocd-initial-admin-secret \
+-n argocd \
+-o jsonpath="{.data.password}" | base64 -d
+
+Example output
+
+Xyz123ABC
+
+Username
+
+admin
+
+Password
+
+Xyz123ABC
+
+Login.
+
+Task 5 — Create Application
+
+Click
+
+Applications
+
+NEW APP
+
+Fill in:
+
+Application Name
+
+flask-app
+
+Project
+
+default
+
+Sync Policy
+
+Automatic
+
+Repository URL
+
+git@github.com:ChimataSrivalli/CICD-Terraform.git
+
+Revision
+
+main
+
+Path
+
+k8s-app/k8s
+
+Cluster
+
+https://kubernetes.default.svc
+
+Namespace
+
+dev
+
+Click
+
+Create
+Task 6 — Sync
+
+Click
+
+SYNC
+
+Then
+
+Synchronize
+
+Wait until
+
+Healthy
+
+Synced
+Task 7 — Enable Auto Sync
+
+Open the application.
+
+Click
+
+APP DETAILS
+
+Enable
+
+Automatic Sync
+
+Also enable
+
+Prune Resources
+
+Enable
+
+Self Heal
+
+Save.
+
+Task 8 — Test GitOps
+
+Edit
+
+k8s-app/k8s/deployment.yaml
+
+Change
+
+replicas: 2
+
+to
+
+replicas: 3
+
+Commit
+
+git add .
+git commit -m "Scale flask app"
+
+Push
+
+git push origin main
+Task 9 — Verify
+
+Watch Argo CD.
+
+Within a short time:
+
+OutOfSync
+
+↓
+
+Syncing
+
+↓
+
+Healthy
+
+Check Kubernetes:
+
+kubectl get deployment -n dev
+
+Expected:
+
+READY   3/3
+
+Check Pods:
+
+kubectl get pods -n dev
+
+You should see three running pods.
+
+
+
+# troubleshoot
+==============
+
+Option 1 (Recommended): Use kubectl port-forward
+
+On the EC2 instance, run:
+
+kubectl port-forward svc/argocd-server -n argocd 8081:443 --address=0.0.0.0
+
+Leave that terminal running.
+
+Then make sure your EC2 security group has an inbound rule allowing TCP port 8081 from your IP (or 0.0.0.0/0 for testing).
+
+Now open:
+
+https://<YOUR-EC2-PUBLIC-IP>:8081
+
+Accept the browser's certificate warning (it's self-signed).
+
+## phase 10
+============
+Step 1 Create Monitoring Namespace
+kubectl create namespace monitoring
+
+Verify
+
+kubectl get ns
+
+You should see
+
+monitoring
+Step 2 Add Helm Repository
+
+Check Helm
+
+helm version
+
+If installed
+
+version.BuildInfo
+
+Add repository
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+Update
+
+helm repo update
+
+Verify
+
+helm repo list
+
+Expected
+
+prometheus-community
+Step 3 Install kube-prometheus-stack
+
+This installs
+
+Prometheus
+Grafana
+AlertManager
+Node Exporter
+kube-state-metrics
+
+Install
+
+helm install monitoring prometheus-community/kube-prometheus-stack \
+-n monitoring
+
+Wait
+
+2–5 minutes
+
+Step 4 Verify Installation
+
+Pods
+
+kubectl get pods -n monitoring
+
+Example
+
+grafana
+prometheus
+alertmanager
+node-exporter
+kube-state-metrics
+
+Services
+
+kubectl get svc -n monitoring
+
+Expected
+
+grafana
+prometheus
+alertmanager
+Step 5 Verify Prometheus
+
+Check pod
+
+kubectl get pods -n monitoring | grep prometheus
+Step 6 Verify Grafana
+kubectl get pods -n monitoring | grep grafana
+Step 7 Expose Grafana
+
+Change service
+
+kubectl patch svc monitoring-grafana \
+-n monitoring \
+-p '{"spec":{"type":"NodePort"}}'
+
+Check
+
+kubectl get svc -n monitoring
+
+Example
+
+monitoring-grafana
+NodePort
+3000:32000
+Step 8 Get NodePort
+kubectl get svc monitoring-grafana -n monitoring
+
+Example
+
+3000:32000/TCP
+
+Here
+
+32000
+
+is your NodePort.
+
+Step 9 Access Grafana
+
+Since Minikube is running inside Docker on an EC2 instance, the NodePort is not directly reachable from your laptop. Create a port-forward from the EC2 instance:
+
+kubectl port-forward svc/monitoring-grafana \
+3000:80 \
+-n monitoring
+
+Leave this terminal running.
+
+Then, in your browser, access:
+
+http://<EC2-Public-IP>:3000
+
+Important: Make sure the EC2 security group allows inbound traffic on TCP port 3000.
+
+Step 10 Get Grafana Password
+
+Username
+
+admin
+
+Password
+
+kubectl get secret monitoring-grafana \
+-n monitoring \
+-o jsonpath="{.data.admin-password}" | base64 -d
+
+Example
+
+P@ssw0rd123
+
+Login
+
+Username：admin
+
+Password：above password
+Step 11 Verify Prometheus
+
+Expose Prometheus
+
+kubectl port-forward svc/monitoring-kube-prometheus-prometheus \
+9090:9090 \
+-n monitoring
+
+Browser
+
+http://<EC2-Public-IP>:9090
+Step 12 Verify Targets
+
+Inside Prometheus
+
+Status
+
+↓
+
+Targets
+
+Everything should be
+
+UP
+Step 13 Open Grafana Dashboards
+
+Go to
+
+Dashboards
+
+↓
+
+Browse
+
+You will find dashboards for
+
+Kubernetes Cluster
+Nodes
+Pods
+Containers
+CPU
+Memory
+Disk
+Network
+Step 14 Monitor Your Flask Application
+
+Deploy your Flask application (if not already running):
+
+kubectl get pods -n dev
+
+You should see the Flask pods.
+
+Then, in Grafana, open the Kubernetes / Compute Resources / Pod dashboard and select the dev namespace to view CPU and memory usage for the Flask pods.
+
+Step 15 Verify Metrics
+
+Run
+
+kubectl top nodes
+
+Expected
+
+NAME        CPU   MEMORY
+minikube
+
+Pods
+
+kubectl top pods -A
+
+Expected
+
+grafana
+
+prometheus
+
+flask
+
+argocd
+Step 16 Verify Node Exporter
+kubectl get daemonset -n monitoring
+
+Expected
+
+node-exporter
+Step 17 Verify kube-state-metrics
+kubectl get deployment -n monitoring
+
+Expected
+
+kube-state-metrics
+Step 18 Cleanup (Optional)
+
+If you want to remove the monitoring stack later:
+
+helm uninstall monitoring -n monitoring
+
+Or remove the namespace:
+
+kubectl delete namespace monitoring
+
+#trouble shoot
+================
+# port forwarding
+
+kubectl port-forward svc/monitoring-kube-prometheus-prometheus 9090:9090 -n monitoring --address=0.0.0.0
+
+integrating both monitoring
+===============================
+
+Yes. Since you're following your Terraform → Jenkins → Kubernetes → ArgoCD → Prometheus → Grafana learning project, the next step is to integrate Prometheus with Grafana so that Grafana visualizes the metrics collected by Prometheus.
+
+The good news is that if you installed the kube-prometheus-stack Helm chart, Prometheus and Grafana are already integrated by default. You mainly need to verify the connection and import dashboards.
+
+Architecture
+                  +---------------------+
+                  |   Flask Application |
+                  +----------+----------+
+                             |
+                             |
+                    Kubernetes Cluster
+                             |
+          +------------------+------------------+
+          |                                     |
+          | Scrapes Metrics                     |
+          v                                     |
++----------------------+                        |
+|     Prometheus       |                        |
+| Collects Metrics     |                        |
++----------+-----------+                        |
+           |                                    |
+           | Query                             |
+           v                                    |
++----------------------+                        |
+|      Grafana         |                        |
+| Visualizes Metrics   |                        |
++----------------------+
+Step 1: Verify Prometheus is Running
+kubectl get pods -n monitoring
+
+Expected:
+
+prometheus-monitoring-kube-prometheus-prometheus-0   Running
+Step 2: Verify Grafana is Running
+kubectl get pods -n monitoring
+
+Expected:
+
+monitoring-grafana-xxxxxxxx   Running
+Step 3: Check the Prometheus Service
+kubectl get svc -n monitoring
+
+You should see:
+
+monitoring-kube-prometheus-prometheus
+
+Notice it is a ClusterIP service.
+
+Example:
+
+NAME                                       TYPE
+monitoring-kube-prometheus-prometheus      ClusterIP
+Step 4: Get the Prometheus Service Name
+
+Run:
+
+kubectl get svc -n monitoring
+
+You should see something similar to:
+
+monitoring-kube-prometheus-prometheus
+
+This is the service Grafana uses as its data source.
+
+Step 5: Access Grafana
+
+Port-forward Grafana:
+
+kubectl port-forward svc/monitoring-grafana 3000:80 -n monitoring --address=0.0.0.0
+
+Open:
+
+http://<EC2-PUBLIC-IP>:3000
+Step 6: Login to Grafana
+
+Username
+
+admin
+
+Get the password:
+
+kubectl get secret monitoring-grafana -n monitoring \
+-o jsonpath="{.data.admin-password}" | base64 -d
+
+Example:
+
+Prom-operator
+Step 7: Open Data Sources
+
+In Grafana:
+
+Connections
+        ↓
+Data Sources
+
+You should already see:
+
+Prometheus
+
+If you do, Grafana is already integrated.
+
+Step 8: If Prometheus Is Missing
+
+Click
+
+Add data source
+
+Choose
+
+Prometheus
+Step 9: Configure Prometheus
+
+For the URL, use the Kubernetes service name:
+
+http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+
+or simply:
+
+http://monitoring-kube-prometheus-prometheus:9090
+
+Both work inside the cluster.
+
+Step 10: Test the Connection
+
+Click:
+
+Save & Test
+
+Expected message:
+
+Successfully queried the Prometheus API.
+Step 11: Import Kubernetes Dashboards
+
+Go to:
+
+Dashboards
+
+↓
+
+Import
+
+Import these dashboard IDs:
+
+Dashboard	ID
+Kubernetes Cluster Monitoring	315
+Kubernetes Pods	6417
+Node Exporter Full	1860
+Kubernetes Deployment	8588
+Kubernetes Cluster	7249
+
+Select:
+
+Prometheus
+
+as the data source.
+
+Step 12: Verify Metrics in Prometheus
+
+Open Prometheus and execute:
+
+up
+
+You should see entries with value 1, indicating targets are up.
+
+Step 13: View Dashboards in Grafana
+
+You should now have dashboards showing:
+
+CPU Usage
+Memory Usage
+Disk Usage
+Network Traffic
+Pod Status
+Deployment Status
+Node Health
+Kubernetes Events
 
