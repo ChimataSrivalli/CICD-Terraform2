@@ -1,6 +1,6 @@
 # Terraform + Jenkins + Minikube CI/CD Project
 
-## Phase 1 to Phase 5 Documentation
+## Phase 1 to Phase 7 Documentation
 
 ### Project Goal
 
@@ -987,6 +987,590 @@ kubectl get svc -n dev
 All commands should execute successfully before moving to Phase 7.
 
 ---
+
+# Phase 7 – Jenkins CI/CD Pipeline with Kubernetes (Minikube)
+
+## Objective
+
+In this phase, Jenkins is integrated with GitHub and Kubernetes (Minikube). Jenkins automatically pulls the application code from GitHub, builds the Docker image, loads it into Minikube, and deploys the application into the Kubernetes cluster.
+
+---
+
+# Step 1: Verify Jenkins
+
+Open Jenkins in the browser.
+
+```
+http://<EC2-Public-IP>:8080
+```
+
+Login using the admin credentials.
+
+Verify Jenkins is running correctly before creating the pipeline.
+
+---
+
+# Step 2: Install Required Plugins
+
+Navigate to
+
+```
+Manage Jenkins
+→ Plugins
+```
+
+Install:
+
+* Pipeline
+* Git
+* Docker Pipeline
+* Kubernetes CLI
+
+Restart Jenkins if prompted.
+
+---
+
+# Step 3: Configure GitHub Access
+
+Generate an SSH key on the EC2 instance.
+
+```
+ssh-keygen -t rsa -b 4096
+```
+
+Display the public key.
+
+```
+cat ~/.ssh/id_rsa.pub
+```
+
+Copy the output.
+
+Go to GitHub
+
+```
+Settings
+→ SSH and GPG Keys
+→ New SSH Key
+```
+
+Paste the key.
+
+---
+
+Change the repository remote to SSH.
+
+```
+git remote set-url origin git@github.com:ChimataSrivalli/CICD-Terraform.git
+```
+
+Verify.
+
+```
+git remote -v
+```
+
+Expected output:
+
+```
+origin git@github.com:ChimataSrivalli/CICD-Terraform.git
+```
+
+Test GitHub authentication.
+
+```
+ssh -T git@github.com
+```
+
+Expected:
+
+```
+Hi ChimataSrivalli!
+You've successfully authenticated.
+```
+
+---
+
+# Step 4: Create the Jenkinsfile
+
+Create the Jenkinsfile in the root of the repository.
+
+```
+nano Jenkinsfile
+```
+
+Paste the pipeline code.
+
+Commit it.
+
+```
+git add Jenkinsfile
+git commit -m "Added Jenkins Pipeline"
+git push origin main
+```
+
+---
+
+# Step 5: Create Jenkins Pipeline Job
+
+Create a new Jenkins Item.
+
+Choose:
+
+```
+Pipeline
+```
+
+Pipeline Definition:
+
+```
+Pipeline script from SCM
+```
+
+SCM:
+
+```
+Git
+```
+
+Repository URL:
+
+```
+git@github.com:ChimataSrivalli/CICD-Terraform.git
+```
+
+Branch:
+
+```
+*/main
+```
+
+Script Path:
+
+```
+Jenkinsfile
+```
+
+Save.
+
+---
+
+# Step 6: Build the Docker Image
+
+The Jenkins pipeline builds the Docker image.
+
+```
+docker build -t flask-app:v1 .
+```
+
+Verify.
+
+```
+docker images
+```
+
+---
+
+# Step 7: Load the Image into Minikube
+
+Since Docker Hub/ECR is not used in this project, load the image directly into Minikube.
+
+```
+minikube image load flask-app:v1
+```
+
+Verify.
+
+```
+minikube image ls
+```
+
+---
+
+# Step 8: Deploy to Kubernetes
+
+Deploy the manifests.
+
+```
+kubectl apply -f k8s/deployment.yaml
+
+kubectl apply -f k8s/service.yaml
+```
+
+Verify.
+
+```
+kubectl get pods -n dev
+
+kubectl get deployment -n dev
+
+kubectl get svc -n dev
+```
+
+---
+
+# Step 9: Configure Jenkins Access to Minikube (One-Time Setup)
+
+During the project, Jenkins could not access the Kubernetes cluster because the Minikube certificates were stored inside:
+
+```
+/home/ubuntu/.minikube
+```
+
+The Jenkins user does not have permission to access the Ubuntu user's home directory.
+
+The following one-time setup fixes the problem.
+
+---
+
+## Step 1: Exit from the Jenkins user
+
+```
+exit
+```
+
+Verify the current user.
+
+```
+whoami
+```
+
+Expected output:
+
+```
+ubuntu
+```
+
+---
+
+## Step 2: Create the Jenkins Minikube directory
+
+```
+sudo mkdir -p /var/lib/jenkins/.minikube
+```
+
+---
+
+## Step 3: Copy the Minikube certificates
+
+```
+sudo cp -r /home/ubuntu/.minikube/* /var/lib/jenkins/.minikube/
+```
+
+---
+
+## Step 4: Change ownership
+
+```
+sudo chown -R jenkins:jenkins /var/lib/jenkins/.minikube
+```
+
+---
+
+## Step 5: Create the Jenkins kube directory
+
+```
+sudo mkdir -p /var/lib/jenkins/.kube
+```
+
+---
+
+## Step 6: Copy the kubeconfig
+
+```
+sudo cp /home/ubuntu/.kube/config /var/lib/jenkins/.kube/config
+```
+
+---
+
+## Step 7: Change ownership
+
+```
+sudo chown -R jenkins:jenkins /var/lib/jenkins/.kube
+```
+
+---
+
+## Step 8: Edit the kubeconfig
+
+Open:
+
+```
+sudo nano /var/lib/jenkins/.kube/config
+```
+
+Replace every occurrence of
+
+```
+/home/ubuntu/.minikube
+```
+
+with
+
+```
+/var/lib/jenkins/.minikube
+```
+
+The file should contain:
+
+```
+certificate-authority: /var/lib/jenkins/.minikube/ca.crt
+
+client-certificate: /var/lib/jenkins/.minikube/profiles/minikube/client.crt
+
+client-key: /var/lib/jenkins/.minikube/profiles/minikube/client.key
+```
+
+Save:
+
+```
+Ctrl + O
+Enter
+Ctrl + X
+```
+
+---
+
+## Step 9: Restart Jenkins
+
+```
+sudo systemctl restart jenkins
+```
+
+---
+
+## Step 10: Test as the Jenkins user
+
+```
+sudo su - jenkins
+
+export KUBECONFIG=/var/lib/jenkins/.kube/config
+
+kubectl get nodes
+```
+
+Expected output:
+
+```
+NAME        STATUS   ROLES           AGE   VERSION
+
+minikube    Ready    control-plane   ...   ...
+```
+
+This confirms Jenkins can communicate with the Kubernetes cluster.
+
+---
+
+# Step 10: Run the Jenkins Pipeline
+
+Click:
+
+```
+Build Now
+```
+
+Open:
+
+```
+Console Output
+```
+
+Expected pipeline stages:
+
+```
+Checkout
+
+Build Docker Image
+
+Load Image into Minikube
+
+Deploy to Kubernetes
+
+Success
+```
+
+---
+
+# Step 11: Verify the Deployment
+
+Check the deployment.
+
+```
+kubectl get deployment -n dev
+```
+
+Check the pods.
+
+```
+kubectl get pods -n dev
+```
+
+Check the service.
+
+```
+kubectl get svc -n dev
+```
+
+Open the application.
+
+```
+minikube service flask-service -n dev
+```
+
+or
+
+```
+kubectl port-forward svc/flask-service 5000:5000 -n dev
+```
+
+Open:
+
+```
+http://<EC2-Public-IP>:5000
+```
+
+or
+
+```
+http://localhost:5000
+```
+
+depending on the chosen access method.
+
+---
+
+# Common Issues Encountered During Phase 7
+
+### 1. Jenkins failed to start
+
+Cause:
+
+```
+Java 17 installed
+```
+
+Jenkins version required:
+
+```
+Java 21
+```
+
+Solution:
+
+Install OpenJDK 21 and restart Jenkins.
+
+---
+
+### 2. Kubernetes Pods in ErrImageNeverPull
+
+Cause:
+
+Docker image was not available inside Minikube.
+
+Solution:
+
+```
+docker build -t flask-app:v1 .
+
+minikube image load flask-app:v1
+```
+
+---
+
+### 3. Jenkins Authentication Required
+
+Error:
+
+```
+Authentication required
+
+Forbidden
+```
+
+Cause:
+
+The Jenkins user could not access the Ubuntu user's Minikube certificates.
+
+Solution:
+
+Copy the Minikube configuration into:
+
+```
+/var/lib/jenkins/.minikube
+
+/var/lib/jenkins/.kube
+```
+
+Update the paths inside:
+
+```
+/var/lib/jenkins/.kube/config
+```
+
+---
+
+### 4. Git Push Failed
+
+Error:
+
+```
+Password authentication is not supported.
+```
+
+Solution:
+
+Configure GitHub SSH authentication.
+
+```
+ssh-keygen
+
+Add the public key to GitHub
+
+Change the remote URL to SSH
+
+git push origin main
+```
+
+---
+
+### 5. Jenkins Build Waiting Forever
+
+Console Output:
+
+```
+Still waiting to schedule task
+
+Waiting for next available executor
+```
+
+Cause:
+
+The Jenkins controller node was temporarily unavailable or had exhausted disk space.
+
+Solution:
+
+Verify the Built-In Node is online.
+
+Check available disk space:
+
+```
+df -h
+```
+
+Free space if required or increase the EC2 root volume, then restart Jenkins.
+
+---
+
+# Phase 7 Completed
+
+At the end of this phase, Jenkins successfully:
+
+* Pulled source code from GitHub.
+* Built the Docker image.
+* Loaded the image into Minikube.
+* Connected securely to the Kubernetes cluster.
+* Deployed the application into the `dev` namespace.
+* Automated the complete CI pipeline without using Docker Hub or Amazon ECR.
 
 
 
