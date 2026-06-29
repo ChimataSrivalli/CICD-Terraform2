@@ -4,7 +4,7 @@
 
 
 ### Project Goal
-hello, terraform
+hello, terraform project
 Build a complete DevOps project using:
 
 * Terraform
