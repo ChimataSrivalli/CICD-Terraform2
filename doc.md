@@ -1,6 +1,7 @@
 # Terraform + Jenkins + Minikube CI/CD Project
 
-## Phase 1 to Phase 7 Documentation
+## Phase 1 to Phase 8 Documentation
+
 
 ### Project Goal
 
@@ -1572,6 +1573,679 @@ At the end of this phase, Jenkins successfully:
 * Deployed the application into the `dev` namespace.
 * Automated the complete CI pipeline without using Docker Hub or Amazon ECR.
 
+<<<<<<< HEAD
 
+=======
+# PHASE 8 – Continuous Integration (CI) with Jenkins
+
+## Objective
+
+The objective of this phase is to automate the Continuous Integration (CI) process using Jenkins. Whenever code is pushed to the GitHub repository, Jenkins automatically detects the changes, checks out the latest code, builds a Docker image, loads the image into Minikube, deploys the application to Kubernetes, and verifies that the updated application is running successfully.
+
+---
+
+# Architecture
+
+```
+Developer
+      │
+      ▼
+Modify Application
+      │
+      ▼
+git add
+git commit
+git push
+      │
+      ▼
+GitHub Repository
+      │
+      ▼
+GitHub Webhook
+      │
+      ▼
+Jenkins Pipeline
+      │
+      ├── Checkout Source Code
+      ├── Build Docker Image
+      ├── Load Image into Minikube
+      ├── Deploy to Kubernetes
+      └── Verify Deployment
+      │
+      ▼
+Kubernetes (Minikube)
+      │
+      ▼
+Updated Flask Application
+```
+
+---
+
+# Prerequisites
+
+Before starting Phase 8, ensure the following services are running successfully.
+
+## Verify Jenkins
+
+```bash
+sudo systemctl status jenkins
+```
+
+Expected Output
+
+```
+Active: active (running)
+```
+
+---
+
+## Verify Docker
+
+```bash
+sudo systemctl status docker
+```
+
+Expected Output
+
+```
+Active: active (running)
+```
+
+---
+
+## Verify Minikube
+
+```bash
+minikube status
+```
+
+Expected Output
+
+```
+minikube: Running
+kubelet: Running
+apiserver: Running
+```
+
+---
+
+## Verify Kubernetes Cluster
+
+```bash
+kubectl get nodes
+```
+
+Expected Output
+
+```
+NAME        STATUS   ROLES
+minikube    Ready    control-plane
+```
+
+---
+
+# Step 1 – Open the Project
+
+Connect to the EC2 instance.
+
+Navigate to the project directory.
+
+```bash
+cd ~/CICD-Terraform
+```
+
+Verify the project structure.
+
+```bash
+ls
+```
+
+Example Output
+
+```
+Jenkinsfile
+README.md
+terraform
+k8s-app
+```
+
+---
+
+# Step 2 – Modify the Application
+
+Navigate to the application directory.
+
+```bash
+cd k8s-app
+```
+
+Open the Flask application.
+
+```bash
+nano app.py
+```
+
+Example
+
+Before
+
+```python
+return "Hello from Flask!"
+```
+
+After
+
+```python
+return "Hello from Jenkins CI/CD Pipeline!"
+```
+
+Save the file.
+
+```
+Ctrl + O
+
+Enter
+
+Ctrl + X
+```
+
+---
+
+# Step 3 – Verify Changes
+
+Check Git status.
+
+```bash
+git status
+```
+
+Expected Output
+
+```
+modified: k8s-app/app.py
+```
+
+---
+
+# Step 4 – Commit the Changes
+
+Stage all changes.
+
+```bash
+git add .
+```
+
+Commit them.
+
+```bash
+git commit -m "Updated Flask application"
+```
+
+Expected Output
+
+```
+1 file changed
+```
+
+---
+
+# Step 5 – Configure Git Identity (Only Once)
+
+If Git displays
+
+```
+Author identity unknown
+```
+
+Configure your Git username.
+
+```bash
+git config --global user.name "ChimataSrivalli"
+```
+
+Configure your email.
+
+```bash
+git config --global user.email "your-email@example.com"
+```
+
+Verify.
+
+```bash
+git config --list
+```
+
+---
+
+# Step 6 – GitHub Authentication
+
+GitHub no longer supports password authentication for Git operations.
+
+If you receive
+
+```
+Invalid username or token
+
+Password authentication is not supported
+```
+
+Do not enter your GitHub password.
+
+Instead, configure SSH authentication.
+
+---
+
+# Step 7 – Generate an SSH Key (One-Time Setup)
+
+Check whether an SSH key already exists.
+
+```bash
+ls -la ~/.ssh
+```
+
+If the following files exist, skip key generation.
+
+```
+id_rsa
+id_rsa.pub
+```
+
+Otherwise generate a new key.
+
+```bash
+ssh-keygen -t rsa -b 4096
+```
+
+Press Enter for every prompt.
+
+---
+
+# Step 8 – Add the SSH Key to GitHub
+
+Display the public key.
+
+```bash
+cat ~/.ssh/id_rsa.pub
+```
+
+Copy the complete key.
+
+Open GitHub.
+
+Navigate to
+
+```
+Profile
+
+↓
+
+Settings
+
+↓
+
+SSH and GPG Keys
+
+↓
+
+New SSH Key
+```
+
+Title
+
+```
+EC2
+```
+
+Paste the copied public key.
+
+Click
+
+```
+Add SSH Key
+```
+
+---
+
+# Step 9 – Test SSH Authentication
+
+Test the SSH connection.
+
+```bash
+ssh -T git@github.com
+```
+
+If prompted
+
+```
+Are you sure you want to continue connecting?
+```
+
+Type
+
+```
+yes
+```
+
+Expected Output
+
+```
+Hi ChimataSrivalli!
+
+You've successfully authenticated.
+```
+
+If you receive
+
+```
+Permission denied (publickey)
+```
+
+The SSH key has not been added correctly.
+
+Verify the SSH key on GitHub and repeat the test.
+
+---
+
+# Step 10 – Change the Git Remote to SSH
+
+Check the current remote.
+
+```bash
+git remote -v
+```
+
+If it displays
+
+```
+https://github.com/ChimataSrivalli/CICD-Terraform.git
+```
+
+Remove it.
+
+```bash
+git remote remove origin
+```
+
+Add the SSH remote.
+
+```bash
+git remote add origin git@github.com:ChimataSrivalli/CICD-Terraform.git
+```
+
+Verify.
+
+```bash
+git remote -v
+```
+
+Expected Output
+
+```
+origin git@github.com:ChimataSrivalli/CICD-Terraform.git
+```
+
+---
+
+# Step 11 – Push the Code
+
+Push the latest commit.
+
+```bash
+git push origin main
+```
+
+Expected Output
+
+```
+Enumerating objects...
+
+Writing objects...
+
+Done
+```
+
+No GitHub username or password should be requested.
+
+---
+
+# Step 12 – Verify GitHub Repository
+
+Open the GitHub repository.
+
+Verify that:
+
+* Latest commit is visible.
+* Modified application code is present.
+* Jenkinsfile exists.
+* README.md is updated (if modified).
+
+---
+
+# Step 13 – Trigger Jenkins
+
+If GitHub Webhook is configured, Jenkins starts automatically after every push.
+
+Otherwise
+
+Open Jenkins.
+
+```
+Dashboard
+
+↓
+
+Pipeline
+
+↓
+
+Build Now
+```
+
+---
+
+# Step 14 – Monitor the Build
+
+Open
+
+```
+Dashboard
+
+↓
+
+Build History
+
+↓
+
+Latest Build
+
+↓
+
+Console Output
+```
+
+The pipeline should execute the following stages.
+
+```
+Checkout Source Code
+
+↓
+
+Build Docker Image
+
+↓
+
+Load Image into Minikube
+
+↓
+
+Deploy Application
+
+↓
+
+Verify Deployment
+```
+
+Final Output
+
+```
+Finished: SUCCESS
+```
+
+---
+
+# Step 15 – Verify Kubernetes
+
+Check the deployment.
+
+```bash
+kubectl get deployment -n dev
+```
+
+Expected
+
+```
+READY
+
+2/2
+```
+
+Check the pods.
+
+```bash
+kubectl get pods -n dev
+```
+
+Expected
+
+```
+STATUS
+
+Running
+```
+
+---
+
+# Step 16 – Access the Application
+
+Retrieve the service URL.
+
+```bash
+minikube service flask-service -n dev --url
+```
+
+Example
+
+```
+http://127.0.0.1:43251
+```
+
+Open the URL in a browser.
+
+The updated Flask application should be displayed.
+
+---
+
+# Commands Used
+
+```bash
+cd ~/CICD-Terraform
+
+cd k8s-app
+
+nano app.py
+
+git status
+
+git add .
+
+git commit -m "Updated Flask application"
+
+git config --global user.name "ChimataSrivalli"
+
+git config --global user.email "your-email@example.com"
+
+ls -la ~/.ssh
+
+ssh-keygen -t rsa -b 4096
+
+cat ~/.ssh/id_rsa.pub
+
+ssh -T git@github.com
+
+git remote -v
+
+git remote remove origin
+
+git remote add origin git@github.com:ChimataSrivalli/CICD-Terraform.git
+
+git push origin main
+
+kubectl get pods -n dev
+
+kubectl get deployment -n dev
+
+minikube service flask-service -n dev --url
+```
+
+---
+
+# Troubleshooting
+
+## Problem
+
+```
+Password authentication is not supported
+```
+
+### Solution
+
+Use SSH authentication instead of HTTPS.
+
+---
+
+## Problem
+
+```
+Permission denied (publickey)
+```
+
+### Solution
+
+* Verify that the public SSH key has been added to GitHub.
+* Test using:
+
+```bash
+ssh -T git@github.com
+```
+
+---
+
+## Problem
+
+```
+nothing to commit, working tree clean
+```
+
+### Solution
+
+No files have changed. Modify a project file (such as `app.py` or `README.md`) before committing.
+
+---
+
+## Problem
+
+Jenkins build does not start automatically.
+
+### Solution
+
+* Verify the GitHub webhook configuration.
+* If needed, start the build manually using **Build Now** in Jenkins.
+
+---
+
+# Phase 8 Summary
+
+In this phase, Jenkins was integrated with GitHub to automate the Continuous Integration (CI) workflow. The project was configured to use SSH-based Git authentication, allowing secure communication with GitHub without passwords. Application changes were committed and pushed to the repository, triggering Jenkins to build the Docker image, load it into Minikube, deploy it to Kubernetes, and verify that the updated application was running successfully. This completed the CI portion of the project and prepared the environment for the Continuous Deployment (CD) phase using Argo CD.
+>>>>>>> 629c9b9 (readme)
 
 

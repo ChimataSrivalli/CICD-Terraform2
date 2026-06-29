@@ -72,7 +72,8 @@ kubectl create namespace argocd
 kubectl create namespace monitoring
 kubectl get ns
 
-
+#adding the github webhook
+webhook test
 
 
 
