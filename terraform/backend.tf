@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
 
-    bucket = "srivalli-tf-backend"
+    bucket = "terraform-srivalli"
 
     key = "dev/terraform.tfstate"
 

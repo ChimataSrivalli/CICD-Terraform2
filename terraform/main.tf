@@ -39,4 +39,8 @@ module "ec2" {
   sg_id = module.sg.sg_id
 
   key_name = var.key_name
+
+  root_volume_size = var.root_volume_size
+
+  root_volume_type = var.root_volume_type
 }
