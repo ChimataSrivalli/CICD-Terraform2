@@ -17,15 +17,25 @@ java -version
 
 echo "[INFO] Installing Jenkins repository..."
 
-sudo mkdir -p /etc/apt/keyrings
+#sudo mkdir -p /etc/apt/keyrings
 
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-sudo tee /etc/apt/keyrings/jenkins-keyring.asc > /dev/null
+#curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
+#sudo tee /etc/apt/keyrings/jenkins-keyring.asc > /dev/null
 
-echo \
-"deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] \
-https://pkg.jenkins.io/debian-stable binary/" | \
-sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+#echo \
+#"deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] \
+#https://pkg.jenkins.io/debian-stable binary/" | \
+#sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+apt install -y gnupg curl
+
+gpg --keyserver keyserver.ubuntu.com \
+    --recv-keys 7198F4B714ABFC68
+
+gpg --export 7198F4B714ABFC68 | \
+tee /etc/apt/trusted.gpg.d/jenkins.gpg >/dev/null
+
+echo "deb https://pkg.jenkins.io/debian-stable binary/" \
+> /etc/apt/sources.list.d/jenkins.list
 
 echo "[INFO] Updating package list..."
 sudo apt update -y
