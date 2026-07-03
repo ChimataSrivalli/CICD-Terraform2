@@ -62,10 +62,15 @@ sudo rm -rf /var/lib/apt/lists/*
 
 echo "[INFO] Adding Jenkins Repository..."
 
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-sudo tee /usr/share/keyrings/jenkins-keyring.asc >/dev/null
+sudo apt install -y gnupg curl
 
-echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | \
+sudo gpg --keyserver keyserver.ubuntu.com \
+    --recv-keys 7198F4B714ABFC68
+
+sudo gpg --export 7198F4B714ABFC68 | \
+sudo tee /etc/apt/trusted.gpg.d/jenkins.gpg >/dev/null
+
+echo "deb https://pkg.jenkins.io/debian-stable binary/" | \
 sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
 
 ##############################################
