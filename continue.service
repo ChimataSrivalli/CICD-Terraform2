@@ -1,0 +1,14 @@
+[Unit]
+Description=Continue DevOps Installation
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/CICD-Terraform2
+ExecStart=/bin/bash /home/ubuntu/CICD-Terraform2/continue.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
