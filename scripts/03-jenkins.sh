@@ -6,56 +6,104 @@ echo "========================================="
 echo "      Jenkins Installation Started"
 echo "========================================="
 
+##############################################
+# Update Packages
+##############################################
+
 echo "[INFO] Updating package index..."
-sudo apt update -y
+
+sudo apt update
+
+##############################################
+# Install Required Packages
+##############################################
+
+echo "[INFO] Installing Required Packages..."
+
+sudo apt install -y \
+    curl \
+    wget \
+    gnupg \
+    ca-certificates \
+    software-properties-common
+
+##############################################
+# Install Java 21
+##############################################
 
 echo "[INFO] Installing Java 21..."
+
 sudo apt install -y openjdk-21-jdk
 
-echo "[INFO] Verifying Java..."
+echo "[INFO] Java Version"
+
 java -version
 
-echo "[INFO] Installing Jenkins repository..."
+##############################################
+# Remove Old Jenkins Repository (if any)
+##############################################
 
-#sudo mkdir -p /etc/apt/keyrings
+echo "[INFO] Cleaning old Jenkins repository..."
 
-#curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-#sudo tee /etc/apt/keyrings/jenkins-keyring.asc > /dev/null
+sudo rm -f /etc/apt/sources.list.d/jenkins.list
+sudo rm -f /usr/share/keyrings/jenkins-keyring.asc
 
-#echo \
-#"deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] \
-#https://pkg.jenkins.io/debian-stable binary/" | \
-#sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
-apt install -y gnupg curl
+##############################################
+# Add Jenkins Repository
+##############################################
 
-gpg --keyserver keyserver.ubuntu.com \
-    --recv-keys 7198F4B714ABFC68
+echo "[INFO] Adding Jenkins Repository..."
 
-gpg --export 7198F4B714ABFC68 | \
-tee /etc/apt/trusted.gpg.d/jenkins.gpg >/dev/null
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
+sudo tee /usr/share/keyrings/jenkins-keyring.asc >/dev/null
 
-echo "deb https://pkg.jenkins.io/debian-stable binary/" \
-> /etc/apt/sources.list.d/jenkins.list
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | \
+sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
 
-echo "[INFO] Updating package list..."
-sudo apt update -y
+##############################################
+# Update Repository
+##############################################
+
+echo "[INFO] Updating package index..."
+
+sudo apt update
+
+##############################################
+# Install Jenkins
+##############################################
 
 echo "[INFO] Installing Jenkins..."
+
 sudo apt install -y jenkins
 
+##############################################
+# Enable Jenkins
+##############################################
+
 echo "[INFO] Starting Jenkins..."
+
+sudo systemctl daemon-reload
 sudo systemctl enable jenkins
 sudo systemctl restart jenkins
 
 echo "[INFO] Waiting for Jenkins..."
+
 sleep 20
+
+##############################################
+# Status
+##############################################
 
 echo
 echo "========================================="
-echo "Jenkins Service Status"
+echo "Jenkins Status"
 echo "========================================="
 
-sudo systemctl status jenkins --no-pager
+sudo systemctl --no-pager status jenkins
+
+##############################################
+# Versions
+##############################################
 
 echo
 echo "========================================="
@@ -65,7 +113,32 @@ echo "========================================="
 java -version
 
 echo
+
 jenkins --version || true
+
+##############################################
+# Initial Password
+##############################################
+
+echo
+echo "========================================="
+echo "Initial Admin Password"
+echo "========================================="
+
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+
+##############################################
+# Jenkins URL
+##############################################
+
+PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
+
+echo
+echo "========================================="
+echo "Jenkins URL"
+echo "========================================="
+
+echo "http://${PUBLIC_IP}:8080"
 
 echo
 echo "========================================="
