@@ -6,6 +6,7 @@ echo "========================================="
 echo "      Jenkins Installation Started"
 echo "========================================="
 
+
 ##############################################
 # Update Packages
 ##############################################
@@ -47,6 +48,13 @@ echo "[INFO] Cleaning old Jenkins repository..."
 
 sudo rm -f /etc/apt/sources.list.d/jenkins.list
 sudo rm -f /usr/share/keyrings/jenkins-keyring.asc
+sudo rm -f /etc/apt/trusted.gpg.d/jenkins.gpg
+
+echo "[INFO] Cleaning apt cache..."
+
+sudo apt clean
+sudo rm -rf /var/lib/apt/lists/*
+
 
 ##############################################
 # Add Jenkins Repository
@@ -116,16 +124,6 @@ echo
 
 jenkins --version || true
 
-##############################################
-# Initial Password
-##############################################
-
-echo
-echo "========================================="
-echo "Initial Admin Password"
-echo "========================================="
-
-sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 
 ##############################################
 # Jenkins URL
@@ -146,15 +144,6 @@ echo "Initial Admin Password"
 echo "========================================="
 
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
-
-echo
-echo "========================================="
-echo "Jenkins URL"
-echo "========================================="
-
-PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
-
-echo "http://$PUBLIC_IP:8080"
 
 echo
 echo "========================================="
