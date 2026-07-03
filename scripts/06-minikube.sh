@@ -37,7 +37,7 @@ echo "[INFO] Starting Minikube..."
 minikube start \
     --driver=docker \
     --cpus=2 \
-    --memory=4096 \
+    --memory=2500 \
     --disk-size=20g \
     --kubernetes-version=stable
 
