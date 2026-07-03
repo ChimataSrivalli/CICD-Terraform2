@@ -3,37 +3,16 @@
 set -euo pipefail
 
 echo "========================================="
-echo "      Jenkins Installation Started"
+echo "      Jenkins Docker Installation"
 echo "========================================="
 
-
 ##############################################
-# Update Packages
-##############################################
-
-echo "[INFO] Updating package index..."
-
-sudo apt update
-
-##############################################
-# Install Required Packages
-##############################################
-
-echo "[INFO] Installing Required Packages..."
-
-sudo apt install -y \
-    curl \
-    wget \
-    gnupg \
-    ca-certificates \
-    software-properties-common
-
-##############################################
-# Install Java 21
+# Install Java
 ##############################################
 
 echo "[INFO] Installing Java 21..."
 
+sudo apt update
 sudo apt install -y openjdk-21-jdk
 
 echo "[INFO] Java Version"
@@ -41,91 +20,93 @@ echo "[INFO] Java Version"
 java -version
 
 ##############################################
-# Remove Old Jenkins Repository (if any)
+# Check Docker
 ##############################################
 
-echo "[INFO] Cleaning old Jenkins repository..."
+echo "[INFO] Checking Docker..."
 
-sudo rm -f /etc/apt/sources.list.d/jenkins.list
-sudo rm -f /usr/share/keyrings/jenkins-keyring.asc
-sudo rm -f /etc/apt/trusted.gpg.d/jenkins.gpg
+if ! systemctl is-active --quiet docker; then
+    echo "[INFO] Starting Docker..."
+    sudo systemctl start docker
+fi
 
-echo "[INFO] Cleaning apt cache..."
-
-sudo apt clean
-sudo rm -rf /var/lib/apt/lists/*
-
+sudo systemctl enable docker
 
 ##############################################
-# Add Jenkins Repository
+# Remove Existing Jenkins Container
 ##############################################
 
-echo "[INFO] Adding Jenkins Repository..."
+if sudo docker ps -a --format '{{.Names}}' | grep -q "^jenkins$"; then
+    echo "[INFO] Removing existing Jenkins container..."
 
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-gpg --dearmor | \
-sudo tee /usr/share/keyrings/jenkins-keyring.gpg >/dev/null
-
-echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" | \
-sudo tee /etc/apt/sources.list.d/jenkins.list
-
+    sudo docker stop jenkins || true
+    sudo docker rm jenkins || true
+fi
 
 ##############################################
-# Update Repository
+# Create Jenkins Volume
 ##############################################
 
-echo "[INFO] Updating package index..."
+echo "[INFO] Creating Jenkins Volume..."
 
-sudo apt update
-
-##############################################
-# Install Jenkins
-##############################################
-
-echo "[INFO] Installing Jenkins..."
-
-sudo apt install -y jenkins
+sudo docker volume create jenkins_home
 
 ##############################################
-# Enable Jenkins
+# Run Jenkins
 ##############################################
 
 echo "[INFO] Starting Jenkins..."
 
-sudo systemctl daemon-reload
-sudo systemctl enable jenkins
-sudo systemctl restart jenkins
-
-echo "[INFO] Waiting for Jenkins..."
-
-sleep 20
-
-##############################################
-# Status
-##############################################
-
-echo
-echo "========================================="
-echo "Jenkins Status"
-echo "========================================="
-
-sudo systemctl --no-pager status jenkins
+sudo docker run -d \
+    --name jenkins \
+    --restart unless-stopped \
+    -p 8080:8080 \
+    -p 50000:50000 \
+    -v jenkins_home:/var/jenkins_home \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    jenkins/jenkins:lts-jdk21
 
 ##############################################
-# Versions
+# Wait for Jenkins
+##############################################
+
+echo "[INFO] Waiting for Jenkins to start..."
+
+sleep 60
+
+##############################################
+# Jenkins Status
 ##############################################
 
 echo
 echo "========================================="
-echo "Installed Versions"
+echo "Docker Containers"
 echo "========================================="
 
-java -version
+sudo docker ps
+
+##############################################
+# Jenkins Version
+##############################################
 
 echo
+echo "========================================="
+echo "Jenkins Version"
+echo "========================================="
 
-jenkins --version || true
+sudo docker exec jenkins java -version || true
 
+##############################################
+# Initial Password
+##############################################
+
+echo
+echo "========================================="
+echo "Initial Admin Password"
+echo "========================================="
+
+sudo docker exec jenkins \
+cat /var/jenkins_home/secrets/initialAdminPassword
 
 ##############################################
 # Jenkins URL
@@ -138,16 +119,9 @@ echo "========================================="
 echo "Jenkins URL"
 echo "========================================="
 
-echo "http://${PUBLIC_IP}:8080"
+echo "http://$PUBLIC_IP:8080"
 
 echo
 echo "========================================="
-echo "Initial Admin Password"
-echo "========================================="
-
-sudo cat /var/lib/jenkins/secrets/initialAdminPassword
-
-echo
-echo "========================================="
-echo "Jenkins Installation Completed"
+echo "Jenkins Installed Successfully"
 echo "========================================="
