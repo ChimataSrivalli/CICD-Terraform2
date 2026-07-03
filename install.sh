@@ -1,4 +1,9 @@
 #!/bin/bash
+if [ "$(id -u)" -eq 0 ]; then
+    echo "Do not run install.sh with sudo."
+    echo "Run it as the ubuntu user: bash install.sh"
+    exit 1
+fi
 
 set -euo pipefail
 
