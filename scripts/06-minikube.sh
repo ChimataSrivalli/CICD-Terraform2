@@ -1,5 +1,9 @@
 #!/bin/bash
-
+if [ "$EUID" -eq 0 ]; then
+    echo "ERROR: Do not run Minikube as root."
+    echo "Run this script as the 'ubuntu' user."
+    exit 1
+fi
 set -euo pipefail
 
 echo "========================================="
@@ -25,7 +29,8 @@ sudo systemctl enable docker
 
 if minikube status >/dev/null 2>&1; then
     echo "[INFO] Existing Minikube cluster found."
-    echo "[INFO] Skipping cluster deletion."
+else
+    echo "[INFO] No Minikube cluster found. Creating a new one..."
 fi
 
 ##############################################
