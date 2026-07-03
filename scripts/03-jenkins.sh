@@ -67,8 +67,7 @@ gpg --dearmor | \
 sudo tee /usr/share/keyrings/jenkins-keyring.gpg >/dev/null
 
 echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" | \
-sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
-
+sudo tee /etc/apt/sources.list.d/jenkins.list
 
 
 ##############################################
